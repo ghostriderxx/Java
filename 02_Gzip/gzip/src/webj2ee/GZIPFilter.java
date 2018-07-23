@@ -1,15 +1,3 @@
-/* Copyright 2005 Tacit Knowledge LLC
- * 
- * Licensed under the Tacit Knowledge Open License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License. You may
- * obtain a copy of the License at http://www.tacitknowledge.com/licenses-1.0.
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package webj2ee;
 
 import java.io.ByteArrayOutputStream;
@@ -21,118 +9,69 @@ import java.util.zip.GZIPOutputStream;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
+import javax.servlet.annotation.WebInitParam;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-@WebFilter(filterName = "GZIPFilter", urlPatterns = "*.jsp")
+@WebFilter(filterName = "GZIPFilter", urlPatterns = { "*.jsp" }, initParams = {
+		@WebInitParam(name = "Enabled", value = "true"), @WebInitParam(name = "LogStats", value = "true") })
 public class GZIPFilter implements Filter {
 	
+	public static final String ACCEPT_ENCODING = "Accept-Encoding";
 	
+	public static final String CONTENT_ENCODING = "Content-Encoding";
 	
-	/** The filter configuration provided by the container */
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	private FilterConfig filterConfig;
 
-	/** {@inheritDoc} */
-	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-			throws IOException, ServletException {
-		doFilterInternal((HttpServletRequest) request, (HttpServletResponse) response, chain);
-	}
-	
-	/**
-	 * Returns the <code>FilterConfig</code> for this filter's web.xml registration.
-	 * 
-	 * @return the <code>FilterConfig</code> for this filter's web.xml registration
-	 */
-	public FilterConfig getFilterConfig() {
-		return filterConfig;
-	}
-
-	/**
-	 * Sets the <code>FilterConfig</code> for this filter's web.xml registration.
-	 * 
-	 * @param val the <code>FilterConfig</code> for this filter's web.xml
-	 *            registration. This is required by WebLogic 6.1's filter
-	 *            implementation.
-	 */
-	public void setFilterConfig(FilterConfig val) {
-		init(val);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
+	@Override
 	public void init(FilterConfig val) {
 		filterConfig = val;
-		printBanner(val.getServletContext());
+		printBanner();
 	}
 
-	/**
-	 * @see Filter#destroy()
-	 */
+	@Override
 	public void destroy() {
 		filterConfig = null;
 	}
 
-	/**
-	 * Utility method to examine the given request, find the given header and see if
-	 * the header contains the provided value
-	 * 
-	 * @param request the request to examine
-	 * @param header  the specific header to check the value on
-	 * @param value   the value to look for in the header
-	 * @return boolean true if the header contains the given value
-	 */
-	protected boolean headerContains(HttpServletRequest request, String header, String value) {
-		Enumeration accepted = request.getHeaders(header);
-		while (accepted.hasMoreElements()) {
-			String headerValue = (String) accepted.nextElement();
-			if (headerValue.indexOf(value) != -1) {
-				return true;
-			}
-		}
-		return false;
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	private void printBanner() {
+		System.out.println("===========================================================");
+		System.out.println("===============       GZIPFilter       ====================");
+		System.out.println("== GZIPFilter.Enabled: " + isEnabled());
+		System.out.println("== GZIPFilter.LogStats: " + isLogStats());
+		System.out.println("===========================================================");
 	}
-	
-	
-	
-	
-	
-	/** The header for accepted encodings */
-	public static final String ACCEPT_ENCODING = "Accept-Encoding";
 
-	/** The header for content encodings */
-	public static final String CONTENT_ENCODING = "Content-Encoding";
+	private boolean isEnabled() {
+		return filterConfig.getInitParameter("Enabled").equals("true");
+	}
 
-	
-	
-	/**
-	 * Performs the actual filtering actions
-	 *
-	 * @param request  the request to work with
-	 * @param response the response to work with
-	 * @param chain    the filter chain to work with
-	 * @exception IOException      if there is a problem performing IO
-	 * @exception ServletException general servlet exceptions
-	 */
+	private boolean isLogStats() {
+		return filterConfig.getInitParameter("LogStats").equals("true");
+	}
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	/**
 	 * Filters the response by wrapping the output stream, by checking to see if the
 	 * browser will accept gzip encodings, and if they can, temporarily storing all
 	 * of the response data and gzipping it before finally sending it to the client
 	 *
-	 * @param request  the request to filter
-	 * @param response the response to filter
-	 * @param chain    the FilterChain to participate in
-	 * @exception IOException      if there is a problem writing the data to the
-	 *                             client
-	 * @exception ServletException for servlet problems
 	 */
-	public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+	@Override
+	public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
 			throws IOException, ServletException {
+		HttpServletRequest request = (HttpServletRequest) req;
+		HttpServletResponse response = (HttpServletResponse) res;
+
 		if (isEnabled()) {
 			// Make sure that proxies know that content will be returned
 			// differently based on the Accept-Encoding request header; this
@@ -170,16 +109,26 @@ public class GZIPFilter implements Filter {
 	}
 
 	/**
-	 * Print a configuration banner including your CVS Version, as well as any
-	 * configuration information you have, to the given context's log
+	 * Utility method to examine the given request, find the given header and see if
+	 * the header contains the provided value
 	 * 
-	 * @param context ServletContext object to use for logging
+	 * @param request the request to examine
+	 * @param header  the specific header to check the value on
+	 * @param value   the value to look for in the header
+	 * @return boolean true if the header contains the given value
 	 */
-	public void printBanner(ServletContext context) {
-		context.log("$Id: GZIPFilter.java,v 1.15 2005/03/12 01:52:29 mike Exp $");
-		context.log("\tGZIPFilter.Enabled: " + isEnabled());
-		context.log("\tGZIPFilter.LogStats: " + GZIPFilterProperties.LogStats);
+	private boolean headerContains(HttpServletRequest request, String header, String value) {
+		Enumeration accepted = request.getHeaders(header);
+		while (accepted.hasMoreElements()) {
+			String headerValue = (String) accepted.nextElement();
+			if (headerValue.indexOf(value) != -1) {
+				return true;
+			}
+		}
+		return false;
 	}
+
+
 
 	/**
 	 * Takes a byte array, compresses it, and writes it to the given output stream
@@ -197,7 +146,7 @@ public class GZIPFilter implements Filter {
 		gzout.close();
 
 		// If statistics are desired, compute them and log them out
-		if (GZIPFilterProperties.LogStats) {
+		if (isLogStats()) {
 			StringBuffer stats = new StringBuffer("" + data.length);
 			stats.append(" / " + compressed.size());
 			stats.append(" / " + (data.length - compressed.size()));
@@ -210,7 +159,7 @@ public class GZIPFilter implements Filter {
 				stats.append(" / NaN");
 			}
 
-			getFilterConfig().getServletContext().log("GZIPFilter: Original / GZip / Saved / Ratio: " + stats);
+			filterConfig.getServletContext().log("GZIPFilter: Original / GZip / Saved / Ratio: " + stats);
 		}
 
 		return compressed.toByteArray();
@@ -244,16 +193,6 @@ public class GZIPFilter implements Filter {
 		}
 
 		return true;
-	}
-
-	/**
-	 * Determines if the filter is enabled. This implementation looks for the
-	 * <code>GZIPFilter.Enabled</code> property in the tk-filters.properties file.
-	 * 
-	 * @return <code>true</code> if the filter is enabled
-	 */
-	protected boolean isEnabled() {
-		return GZIPFilterProperties.Enabled;
 	}
 
 	/**
