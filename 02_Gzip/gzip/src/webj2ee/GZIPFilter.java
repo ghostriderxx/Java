@@ -17,8 +17,14 @@ import javax.servlet.annotation.WebInitParam;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-@WebFilter(filterName = "GZIPFilter", urlPatterns = { "*.jsp" }, initParams = {
-		@WebInitParam(name = "Enabled", value = "true"), @WebInitParam(name = "LogStats", value = "true") })
+@WebFilter(
+		filterName = "GZIPFilter", 
+		urlPatterns = { "*.jsp" }, 
+		initParams = {
+			@WebInitParam(name = "Enabled", value = "true"), 
+			@WebInitParam(name = "LogStats", value = "true") 
+		}
+)
 public class GZIPFilter implements Filter {
 	
 	public static final String ACCEPT_ENCODING = "Accept-Encoding";
@@ -60,12 +66,6 @@ public class GZIPFilter implements Filter {
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	/**
-	 * Filters the response by wrapping the output stream, by checking to see if the
-	 * browser will accept gzip encodings, and if they can, temporarily storing all
-	 * of the response data and gzipping it before finally sending it to the client
-	 *
-	 */
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
 			throws IOException, ServletException {
@@ -73,12 +73,6 @@ public class GZIPFilter implements Filter {
 		HttpServletResponse response = (HttpServletResponse) res;
 
 		if (isEnabled()) {
-			// Make sure that proxies know that content will be returned
-			// differently based on the Accept-Encoding request header; this
-			// prevents them from caching the gzip'd response and returning it
-			// to non-gzip-aware clients
-			response.addHeader("Vary", ACCEPT_ENCODING);
-
 			// Create a response wrapper that captures servlet output
 			// instead of sending it to the client
 			GenericResponseWrapper wrapper = new GenericResponseWrapper(response);
@@ -90,7 +84,7 @@ public class GZIPFilter implements Filter {
 
 			// If the content isn't cached, its not an internal forward, and the
 			// browser accepts gzip, compress the thing and send it out
-			if (!isCached(wrapper) && !isIncluded(request) && acceptsGzip(request)) {
+			if (!isCached(wrapper) && acceptsGzip(request)) {
 				byte[] compressedData = compressData(wrapper.getData());
 				response.setHeader(CONTENT_ENCODING, "gzip");
 				response.setContentLength(compressedData.length);
@@ -163,22 +157,6 @@ public class GZIPFilter implements Filter {
 		}
 
 		return compressed.toByteArray();
-	}
-
-	/**
-	 * Make sure that the request isn't actually an internal redirect, gzipping
-	 * content as it bashed around inside the server isn't a good idea
-	 * 
-	 * @param request the request to check for internal referencing
-	 * @return true if the request is included
-	 */
-	protected boolean isIncluded(ServletRequest request) {
-		String uri = (String) request.getAttribute("javax.servlet.include.request_uri");
-		if (uri == null) {
-			return false;
-		}
-
-		return true;
 	}
 
 	/**
