@@ -1,0 +1,11 @@
+@CHARSET "UTF-8";
+
+.rookietable,
+.rookietable th,
+.rookietable td{
+	border: 1px solid black;
+	border-collapse: separate;
+	min-width: 100px;
+	text-align: center;
+}
+
